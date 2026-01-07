@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>專業級股票戰情室</title>
+    <title>股票戰情室 (v2.2)</title>
     <style>
         :root {
             --bg-color: #131722;
@@ -18,14 +18,14 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0;
-            padding: 0; /* 移除 padding 以便跑馬燈滿版 */
+            padding: 0;
             box-sizing: border-box;
         }
 
         /* 頂部跑馬燈容器 */
         #ticker-tape-container {
             width: 100%;
-            height: 72px; /* 根據 widget 預設高度 */
+            height: 72px;
             background: #000;
             margin-bottom: 20px;
         }
@@ -40,13 +40,9 @@
             gap: 20px;
         }
 
-        /* 搜尋與標題區 */
-        header {
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        
+        header { text-align: center; margin-bottom: 10px; }
         h1 { margin: 0 0 10px 0; font-size: 1.8rem; }
+        p { margin: 0; color: #787b86; font-size: 0.9rem; }
 
         .search-box {
             background-color: var(--card-bg);
@@ -69,6 +65,8 @@
             font-size: 16px;
         }
 
+        select { min-width: 160px; }
+
         button {
             background-color: var(--accent-color);
             border: none;
@@ -78,13 +76,13 @@
         }
         button:hover { background-color: var(--hover-color); }
 
-        /* 新聞連結按鈕 */
         .news-links {
             display: flex;
             gap: 10px;
             justify-content: center;
             width: 100%;
             margin-top: 10px;
+            flex-wrap: wrap;
         }
         .news-btn {
             background-color: #434651;
@@ -100,29 +98,34 @@
         }
         .news-btn:hover { background-color: #5d606b; }
 
-        /* 佈局系統 */
         .dashboard-grid {
             display: grid;
-            grid-template-columns: 3fr 1fr; /* 左寬右窄 */
+            grid-template-columns: 3fr 1fr;
             gap: 20px;
         }
 
-        @media (max-width: 1200px) {
-            .dashboard-grid { grid-template-columns: 2fr 1fr; }
-        }
-        @media (max-width: 900px) {
-            .dashboard-grid { grid-template-columns: 1fr; }
-        }
+        @media (max-width: 1200px) { .dashboard-grid { grid-template-columns: 2fr 1fr; } }
+        @media (max-width: 900px) { .dashboard-grid { grid-template-columns: 1fr; } }
 
         .main-column { display: flex; flex-direction: column; gap: 20px; }
         .side-column { display: flex; flex-direction: column; gap: 20px; }
 
-        /* 卡片樣式 */
         .widget-card {
             background-color: var(--card-bg);
             border-radius: 8px;
             overflow: hidden;
             position: relative;
+            min-height: 100px; /* 避免沒內容時縮成一條線 */
+        }
+        
+        .empty-placeholder {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: #555;
+            font-size: 1.2rem;
+            min-height: 200px;
         }
 
         .section-label {
@@ -138,15 +141,12 @@
             pointer-events: none;
         }
 
-        /* 各區塊高度設定 */
         #chart-container { height: 600px; }
         #financials-container { height: 600px; }
-        
         #technicals-container { height: 400px; }
         #profile-container { height: 400px; }
-        #news-timeline-container { height: 500px; } /* 新增的新聞高度 */
-        
-        #heatmap-container { height: 600px; width: 100%; margin-top: 20px; } /* 熱力圖高度 */
+        #news-timeline-container { height: 500px; }
+        #heatmap-container { height: 600px; width: 100%; margin-top: 20px; }
 
     </style>
 </head>
@@ -157,16 +157,17 @@
 <div class="container">
     <header>
         <h1>📈 專業級股票戰情室</h1>
-        <p>匯率・原物料・圖表・財報・新聞・熱力圖</p>
     </header>
 
     <div class="search-box">
         <select id="marketSelect">
-            <option value="US">美股 (US)</option>
-            <option value="TW">台股 (TW)</option>
-            <option value="HK">港股 (HK)</option>
+            <option value="US">美股 (自動)</option>
+            <option value="NYSE">美股 (NYSE 紐約)</option>
+            <option value="NASDAQ">美股 (NASDAQ)</option>
+            <option value="TW">台股 (TWSE/TPEX)</option>
+            <option value="HK">港股 (HKEX)</option>
         </select>
-        <input type="text" id="symbolInput" placeholder="代碼 (如 NVDA 或 2330)" value="NVDA">
+        <input type="text" id="symbolInput" placeholder="輸入代碼 (例: AAPL, 2330)" value="">
         <button onclick="runSearch()">查詢</button>
         
         <div class="news-links" id="newsLinks"></div>
@@ -176,36 +177,40 @@
         <div class="main-column">
             <div class="widget-card" id="chart-container">
                 <div class="section-label">即時走勢</div>
+                <div class="empty-placeholder">請輸入代碼以查看圖表</div>
             </div>
             <div class="widget-card" id="financials-container">
                 <div class="section-label">財務報表</div>
+                <div class="empty-placeholder">等待查詢...</div>
             </div>
         </div>
 
         <div class="side-column">
             <div class="widget-card" id="technicals-container">
-                <div class="section-label">技術指標 (買賣力道)</div>
+                <div class="section-label">技術指標</div>
+                <div class="empty-placeholder">等待查詢...</div>
             </div>
             <div class="widget-card" id="profile-container">
                 <div class="section-label">公司檔案</div>
+                <div class="empty-placeholder">等待查詢...</div>
             </div>
             <div class="widget-card" id="news-timeline-container">
-                <div class="section-label">相關新聞 (News Timeline)</div>
+                <div class="section-label">相關新聞</div>
+                <div class="empty-placeholder">等待查詢...</div>
             </div>
         </div>
     </div>
 
     <div class="widget-card" id="heatmap-container">
-        <div class="section-label">美股 S&P 500 熱力圖 (市場綜觀)</div>
+        <div class="section-label">市場熱力圖</div>
     </div>
-
 </div>
 
 <script type="text/javascript">
     window.onload = function() {
-        loadTickerTape(); // 載入跑馬燈
-        loadHeatmap();    // 載入熱力圖
-        runSearch();      // 載入預設股票
+        loadTickerTape(); // 僅載入頂部跑馬燈
+        loadHeatmap();    // 僅載入底部熱力圖
+        // 不再自動執行 runSearch()
 
         document.getElementById("symbolInput").addEventListener("keypress", function(e) {
             if (e.key === "Enter") runSearch();
@@ -214,111 +219,44 @@
 
     function runSearch() {
         let rawSymbol = document.getElementById('symbolInput').value.trim().toUpperCase();
-        const market = document.getElementById('marketSelect').value;
-        let symbolForWidget = rawSymbol;
+        if(!rawSymbol) return; // 空白不查詢
 
-        // 處理代碼前綴
+        const market = document.getElementById('marketSelect').value;
+        let finalSymbol = rawSymbol;
+
+        // 統一的代碼處理邏輯
         if (market === 'TW') {
             if (!rawSymbol.startsWith('TWSE:') && !rawSymbol.startsWith('TPEX:')) {
-                symbolForWidget = `TWSE:${rawSymbol}`;
+                finalSymbol = `TWSE:${rawSymbol}`;
             }
         } else if (market === 'HK') {
-             if (!rawSymbol.includes(':')) {
-                 symbolForWidget = `HKEX:${rawSymbol}`;
-            }
-        }
-
+             if (!rawSymbol.includes(':')) finalSymbol = `HKEX:${rawSymbol}`;
+        } else if (market === 'NYSE') {
+            if (!rawSymbol.includes(':')) finalSymbol = `NYSE:${rawSymbol}`;
+        } else if (market === 'NASDAQ') {
+            if (!rawSymbol.includes(':')) finalSymbol = `NASDAQ:${rawSymbol}`;
+        } 
+        
         updateExternalNewsLinks(rawSymbol, market);
         
-        // 更新與單一股票相關的組件
-        loadChart(symbolForWidget);
-        loadFinancials(symbolForWidget);
-        loadTechnicals(symbolForWidget);
-        loadProfile(symbolForWidget);
-        loadNewsTimeline(symbolForWidget); // 載入新聞時間軸
+        // 全部使用統一處理後的代碼，確保精確度
+        loadChart(finalSymbol);
+        loadFinancials(finalSymbol);
+        loadTechnicals(finalSymbol);
+        loadProfile(finalSymbol);
+        loadNewsTimeline(finalSymbol);
     }
 
-    // --- 新增組件的載入函式 ---
+    // --- Widget 載入函式 ---
 
-    // 1. 跑馬燈 (匯率、原物料、指數)
-    function loadTickerTape() {
-        injectWidget('ticker-tape-container', 'https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js', {
-            "symbols": [
-                { "proName": "FOREXCOM:SPXUSD", "title": "S&P 500" },
-                { "proName": "FOREXCOM:NSXUSD", "title": "Nasdaq 100" },
-                { "proName": "FX_IDC:USDTWD", "title": "美元/台幣" },
-                { "proName": "TVC:GOLD", "title": "黃金" },
-                { "proName": "TVC:USOIL", "title": "原油" },
-                { "proName": "BINANCE:BTCUSDT", "title": "比特幣" },
-                { "proName": "TWSE:TAIEX", "title": "加權指數" }
-            ],
-            "showSymbolLogo": true,
-            "colorTheme": "dark",
-            "isTransparent": false,
-            "displayMode": "adaptive",
-            "locale": "zh_TW"
-        });
-    }
-
-    // 2. 新聞時間軸
-    function loadNewsTimeline(symbol) {
-        injectWidget('news-timeline-container', 'https://s3.tradingview.com/external-embedding/embed-widget-timeline.js', {
-            "feedMode": "symbol",
-            "symbol": symbol,
-            "colorTheme": "dark",
-            "isTransparent": false,
-            "displayMode": "regular",
+    function loadProfile(symbol) {
+        injectWidget('profile-container', 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-profile.js', {
             "width": "100%",
             "height": "100%",
-            "locale": "zh_TW"
-        });
-    }
-
-    // 3. 股市熱力圖
-    function loadHeatmap() {
-        injectWidget('heatmap-container', 'https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js', {
-            "exchanges": [],
-            "dataSource": "SPX500", // 預設顯示 S&P 500
-            "grouping": "sector",
-            "blockSize": "market_cap_basic",
-            "blockColor": "change",
-            "locale": "zh_TW",
-            "symbolUrl": "",
             "colorTheme": "dark",
-            "hasTopBar": true,
             "isTransparent": false,
-            "width": "100%",
-            "height": "100%"
-        });
-    }
-
-    // --- 原有功能維持 ---
-
-    function updateExternalNewsLinks(symbol, market) {
-        const container = document.getElementById('newsLinks');
-        container.innerHTML = '';
-        let links = [];
-
-        if (market === 'TW') {
-            links = [
-                { name: 'Yahoo股市', url: `https://tw.stock.yahoo.com/quote/${symbol}` },
-                { name: 'Google新聞', url: `https://news.google.com/search?q=${symbol}+股票&hl=zh-TW&gl=TW` },
-                { name: '鉅亨網', url: `https://www.cnyes.com/search/news?q=${symbol}` }
-            ];
-        } else {
-            links = [
-                { name: 'Google News', url: `https://news.google.com/search?q=${symbol}+stock&hl=zh-TW&gl=TW` },
-                { name: 'Yahoo Finance', url: `https://finance.yahoo.com/quote/${symbol}` }
-            ];
-        }
-
-        links.forEach(l => {
-            const a = document.createElement('a');
-            a.href = l.url;
-            a.target = '_blank';
-            a.className = 'news-btn';
-            a.innerHTML = `📄 ${l.name}`;
-            container.appendChild(a);
+            "symbol": symbol, 
+            "locale": "zh_TW"
         });
     }
 
@@ -362,19 +300,85 @@
             "colorTheme": "dark"
         });
     }
-
-    function loadProfile(symbol) {
-        injectWidget('profile-container', 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-profile.js', {
-            "width": "100%",
-            "height": "100%",
+    
+    function loadNewsTimeline(symbol) {
+        injectWidget('news-timeline-container', 'https://s3.tradingview.com/external-embedding/embed-widget-timeline.js', {
+            "feedMode": "symbol",
+            "symbol": symbol,
             "colorTheme": "dark",
             "isTransparent": false,
-            "symbol": symbol,
+            "displayMode": "regular",
+            "width": "100%",
+            "height": "100%",
             "locale": "zh_TW"
         });
     }
 
-    // Widget 注入器
+    function loadTickerTape() {
+        injectWidget('ticker-tape-container', 'https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js', {
+            "symbols": [
+                { "proName": "FOREXCOM:SPXUSD", "title": "S&P 500" },
+                { "proName": "FOREXCOM:NSXUSD", "title": "Nasdaq 100" },
+                { "proName": "FX_IDC:USDTWD", "title": "美元/台幣" },
+                { "proName": "TVC:GOLD", "title": "黃金" },
+                { "proName": "TVC:USOIL", "title": "原油" },
+                { "proName": "BINANCE:BTCUSDT", "title": "比特幣" },
+                { "proName": "TWSE:TAIEX", "title": "加權指數" }
+            ],
+            "showSymbolLogo": true,
+            "colorTheme": "dark",
+            "isTransparent": false,
+            "displayMode": "adaptive",
+            "locale": "zh_TW"
+        });
+    }
+
+    function loadHeatmap() {
+        injectWidget('heatmap-container', 'https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js', {
+            "exchanges": [],
+            "dataSource": "SPX500",
+            "grouping": "sector",
+            "blockSize": "market_cap_basic",
+            "blockColor": "change",
+            "locale": "zh_TW",
+            "symbolUrl": "",
+            "colorTheme": "dark",
+            "hasTopBar": true,
+            "isTransparent": false,
+            "width": "100%",
+            "height": "100%"
+        });
+    }
+
+    function updateExternalNewsLinks(symbol, market) {
+        const container = document.getElementById('newsLinks');
+        container.innerHTML = '';
+        let links = [];
+        const isTW = market === 'TW';
+        
+        if (isTW) {
+            links = [
+                { name: 'Yahoo股市', url: `https://tw.stock.yahoo.com/quote/${symbol}` },
+                { name: 'Google新聞', url: `https://news.google.com/search?q=${symbol}+股票&hl=zh-TW&gl=TW` },
+                { name: '鉅亨網', url: `https://www.cnyes.com/search/news?q=${symbol}` }
+            ];
+        } else {
+            links = [
+                { name: 'Google News', url: `https://news.google.com/search?q=${symbol}+stock&hl=zh-TW&gl=TW` },
+                { name: 'Yahoo Finance', url: `https://finance.yahoo.com/quote/${symbol}` }
+            ];
+        }
+
+        links.forEach(l => {
+            const a = document.createElement('a');
+            a.href = l.url;
+            a.target = '_blank';
+            a.className = 'news-btn';
+            a.innerHTML = `📄 ${l.name}`;
+            container.appendChild(a);
+        });
+    }
+
     function injectWidget(containerId, scriptSrc, config) {
         const container = document.getElementById(containerId);
         container.innerHTML = ''; 
